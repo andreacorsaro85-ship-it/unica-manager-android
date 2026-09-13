@@ -1,4 +1,4 @@
-name: Build UNICA Android AAB
+ame: Build UNICA Android Production AAB
 
 on:
   workflow_dispatch:
@@ -64,12 +64,12 @@ jobs:
 
       - name: Rename bundle
         run: |
-          cp app/build/outputs/bundle/release/app-release.aab unica-manager-0.1.3-release.aab
+          cp app/build/outputs/bundle/release/app-release.aab unica-manager-1.0.0-release.aab
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v6
         with:
-          name: unica-manager-0.1.3-aab
-          path: unica-manager-0.1.3-release.aab
+          name: unica-manager-1.0.0-aab
+          path: unica-manager-1.0.0-release.aab
           retention-days: 14
           if-no-files-found: error
