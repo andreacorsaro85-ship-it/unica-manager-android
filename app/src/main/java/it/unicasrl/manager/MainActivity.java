@@ -1,0 +1,15 @@
+package it.unicasrl.manager;
+
+import android.app.*; import android.os.*; import android.content.*; import android.graphics.Typeface; import android.view.*; import android.widget.*; import org.json.*;
+
+public class MainActivity extends Activity {
+    LinearLayout list;
+    @Override public void onCreate(Bundle b){ super.onCreate(b); build(); load(); }
+    private void build(){ ScrollView sc=new ScrollView(this); LinearLayout p=Ui.page(this); sc.addView(p); TextView t=Ui.title(this,"UNICA Manager"); p.addView(t); TextView server=Ui.text(this,Prefs.base(this)); server.setTextSize(12);p.addView(server); Button refresh=Ui.button(this,"Aggiorna incarichi"); p.addView(refresh); list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);p.addView(list); Button logout=Ui.button(this,"Esci dall'app");p.addView(logout);setContentView(sc);refresh.setOnClickListener(v->load());logout.setOnClickListener(v->logout()); }
+    private void load(){ list.removeAllViews();list.addView(Ui.text(this,"Caricamento…")); Api.get(this,"/me",(c,b,e)->{ if(c==401){relogin();return;} if(c>=200&&c<300){try{JSONObject u=new JSONObject(b); setTitle("UNICA Manager · "+u.optString("name"));}catch(Exception ignored){}} loadJobs();}); }
+    private void loadJobs(){ Api.get(this,"/cleaning/jobs",(code,body,e)->{ list.removeAllViews(); if(e!=null){list.addView(Ui.text(this,"Errore di rete: "+e.getMessage()));return;} if(code==401){relogin();return;} if(code==403){list.addView(Ui.text(this,"Il tuo account non dispone del modulo Pulizie."));return;} try{ JSONArray a=new JSONArray(body); if(a.length()==0){list.addView(Ui.text(this,"Nessun incarico disponibile."));return;} for(int i=0;i<a.length();i++) addJob(a.getJSONObject(i)); }catch(Exception x){list.addView(Ui.text(this,"Risposta non valida dal server."));} }); }
+    private void addJob(JSONObject j){ LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(Ui.dp(this,14),Ui.dp(this,14),Ui.dp(this,14),Ui.dp(this,14));card.setBackgroundColor(android.graphics.Color.WHITE); LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.setMargins(0,0,0,Ui.dp(this,12));card.setLayoutParams(cp); TextView name=Ui.text(this,j.optString("client_name","Cliente"));name.setTextSize(19);name.setTypeface(Typeface.DEFAULT,Typeface.BOLD);name.setTextColor(Ui.GREEN);card.addView(name);card.addView(Ui.text(this,j.optString("work_date")+" · "+j.optString("start_time")+" – "+j.optString("end_time")));card.addView(Ui.text(this,j.optString("location")));card.addView(Ui.text(this,"Stato: "+j.optString("status")));card.setOnClickListener(v->{Intent in=new Intent(this,JobDetailActivity.class);in.putExtra("id",j.optInt("id"));startActivity(in);});list.addView(card); }
+    private void logout(){ Api.post(this,"/mobile/logout",new JSONObject(),(c,b,e)->{Prefs.clearToken(this);relogin();}); }
+    private void relogin(){ Prefs.clearToken(this);startActivity(new Intent(this,LoginActivity.class));finish(); }
+    @Override protected void onResume(){super.onResume(); if(list!=null)loadJobs();}
+}
