@@ -1,4 +1,4 @@
-ame: Build UNICA Android Production AAB
+name: Build UNICA Android Production AAB
 
 on:
   workflow_dispatch:
