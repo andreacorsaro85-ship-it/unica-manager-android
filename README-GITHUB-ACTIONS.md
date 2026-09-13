@@ -1,11 +1,11 @@
-# UNICA Manager Android 0.1.1 — build AAB con GitHub Actions
+# UNICA Manager Android 1.0.0 — build AAB con GitHub Actions
 
 Questa versione è predisposta per generare il file Android App Bundle `.aab` senza Android Studio.
 
 ## Identificativo definitivo dell'app
 
 - Application ID: `it.unicasrl.manager`
-- Versione: `0.1.1`
+- Versione: `1.0.0`
 - Version code: `2`
 
 È consigliato usare questo Application ID già dal primo caricamento su Google Play.
@@ -55,17 +55,17 @@ Crea:
 
 Nel repository:
 
-`Actions → Build UNICA Android AAB → Run workflow → Run workflow`
+`Actions → Build UNICA Android Production AAB → Run workflow → Run workflow`
 
 Attendi il completamento del job **Generate signed AAB**.
 
 In fondo alla pagina del workflow, nella sezione **Artifacts**, scarica:
 
-`unica-manager-0.1.1-aab`
+`unica-manager-1.0.0-aab`
 
 All'interno trovi:
 
-`unica-manager-0.1.1-release.aab`
+`unica-manager-1.0.0-release.aab`
 
 Questo è il file da caricare in Google Play Console.
 
