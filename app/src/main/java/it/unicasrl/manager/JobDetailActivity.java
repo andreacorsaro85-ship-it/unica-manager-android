@@ -1,0 +1,28 @@
+package it.unicasrl.manager;
+
+import android.Manifest; import android.app.*; import android.os.*; import android.content.pm.PackageManager; import android.location.*; import android.widget.*; import org.json.*; import java.util.*;
+
+public class JobDetailActivity extends Activity {
+    int id; LinearLayout p; JSONObject job; String pendingStatus=""; boolean demo=false;
+    @Override public void onCreate(Bundle b){super.onCreate(b);id=getIntent().getIntExtra("id",0);demo=getIntent().getBooleanExtra("demo",false);load();}
+    private String jobPath(){return demo?"/review/demo/jobs/"+id:"/cleaning/jobs/"+id;}
+    private void load(){ Api.get(this,jobPath(),(c,body,e)->{ if(c==401){finish();return;} if(c<200||c>=300){showText("Errore",Api.message(body));return;}try{job=new JSONObject(body);render();}catch(Exception x){showText("Errore","Risposta non valida.");}}); }
+    private void render(){ ScrollView sc=new ScrollView(this);p=Ui.page(this);sc.addView(p);if(demo){TextView d=Ui.text(this,"MODALITÀ DEMO GOOGLE PLAY · dati sintetici, nessun dato aziendale reale");d.setTextColor(Ui.GREEN);p.addView(d);}p.addView(Ui.title(this,job.optString("client_name","Incarico")));p.addView(Ui.text(this,job.optString("work_date")+" · "+job.optString("start_time")+" – "+job.optString("end_time")));p.addView(Ui.text(this,job.optString("location")));p.addView(Ui.text(this,"Stato: "+job.optString("status")));String notes=job.optString("notes","");if(!notes.isEmpty())p.addView(Ui.text(this,"Note: "+notes));String s=job.optString("status");if("assigned".equals(s)) action("Accetta incarico","accepted",false);if("accepted".equals(s)) action("Inizia lavoro","in_progress",true);if("in_progress".equals(s)) action("Termina lavoro","completed",true);setContentView(sc); }
+    private void action(String label,String status,boolean gps){Button b=Ui.button(this,label);p.addView(b);b.setOnClickListener(v->{if(gps)requestGeo(status);else send(status,null,false);});}
+    private void requestGeo(String status){
+        pendingStatus=status;
+        if(!Prefs.locationDisclosureAccepted(this)){
+            new AlertDialog.Builder(this)
+                .setTitle("Uso della posizione")
+                .setMessage(demo ? "Nella modalità di revisione Google Play, UNICA Manager mostra lo stesso flusso autorizzativo usato dagli operatori. La posizione serve normalmente a verificare la presenza presso la sede dell’incarico. In questa demo la posizione non viene salvata né associata a dati aziendali reali. L’app non rileva la posizione in background e non effettua tracciamento continuo." : "UNICA Manager raccoglie e trasmette al gestionale la tua posizione precisa quando scegli Inizia lavoro o Termina lavoro. La posizione viene utilizzata per verificare la presenza presso la sede dell’incarico e registrare eventuali anomalie geofence. L’app non rileva la posizione in background e non effettua tracciamento continuo.")
+                .setNegativeButton("Non consentire",null)
+                .setPositiveButton("Continua",(d,w)->{Prefs.locationDisclosureAccepted(this,true);requestGeo(status);})
+                .setCancelable(false).show(); return;
+        }
+        if(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION},88);return;}locate(status);
+    }
+    @Override public void onRequestPermissionsResult(int r,String[] p,int[] g){super.onRequestPermissionsResult(r,p,g);if(r==88&&g.length>0&&g[0]==PackageManager.PERMISSION_GRANTED)locate(pendingStatus);else Toast.makeText(this,"La posizione è necessaria per iniziare/terminare il lavoro.",Toast.LENGTH_LONG).show();}
+    private void locate(String status){LocationManager lm=(LocationManager)getSystemService(LOCATION_SERVICE);List<String> ps=lm.getProviders(true);Location best=null;for(String provider:ps){try{Location l=lm.getLastKnownLocation(provider);if(l!=null&&(best==null||l.getAccuracy()<best.getAccuracy()))best=l;}catch(SecurityException ignored){}}if(best!=null&&best.getAccuracy()<=150){send(status,best,false);return;}Toast.makeText(this,"Ricerca posizione GPS…",Toast.LENGTH_SHORT).show();try{lm.requestSingleUpdate(LocationManager.GPS_PROVIDER,l->send(status,l,false),getMainLooper());}catch(Exception e){Toast.makeText(this,"GPS non disponibile.",Toast.LENGTH_LONG).show();}}
+    private void send(String status,Location loc,boolean force){try{JSONObject j=new JSONObject();j.put("status",status);if(loc!=null&&!demo){j.put("latitude",loc.getLatitude());j.put("longitude",loc.getLongitude());j.put("accuracy",loc.getAccuracy());}if(force&&!demo)j.put("force_outside_geofence",true);Api.post(this,jobPath()+"/status",j,(c,body,e)->{if(c>=200&&c<300){if(demo){try{job.put("status",status);}catch(Exception ignored){}Toast.makeText(this,"Azione demo completata. Nessun dato di posizione è stato salvato.",Toast.LENGTH_LONG).show();render();}else load();return;}if(!demo&&"outside_geofence".equals(Api.code(body))&&loc!=null&&!force){String msg=Api.message(body)+"\n\nVuoi procedere comunque? L'anomalia sarà registrata nel gestionale.";new AlertDialog.Builder(this).setTitle("Posizione non verificata").setMessage(msg).setNegativeButton("Annulla",null).setPositiveButton("Procedi comunque",(d,w)->send(status,loc,true)).show();}else Toast.makeText(this,Api.message(body),Toast.LENGTH_LONG).show();});}catch(Exception ignored){}}
+    private void showText(String title,String text){LinearLayout l=Ui.page(this);l.addView(Ui.title(this,title));l.addView(Ui.text(this,text));setContentView(l);}
+}
